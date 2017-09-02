@@ -89,7 +89,8 @@ class Login(object):
         return self.data["result"] == "success"
 
     def logout_by_userid_and_password(self, user_id, password):
-        self.ePortal_post("logoutByUserIdAndPass", {"userId": user_id, "pass": password})
+        self.ePortal_post("logoutByUserIdAndPass",
+                          {"userId": user_id, "pass": password})
         return self.data["result"] == "success"
 
     def logout(self):
@@ -102,7 +103,9 @@ class Login(object):
 
     def get_online_user_info(self):
         if self.user_index:
-            self.get_page("http://210.77.16.21/eportal/success.jsp?userIndex=" + self.user_index)
+            self.get_page(
+                "http://210.77.16.21/eportal/success.jsp?userIndex=" +
+                self.user_index)
         content = {"userIndex": self.user_index}
         url = Login.ePortalUrl + "getOnlineUserInfo"
         self.post_page(url, content)
@@ -120,23 +123,28 @@ class Login(object):
 
     def print_account_infos(self):
         logging.info(
-            u"[#] %s %s %s %s %s %s %s %s %s", time.strftime("%H:%M:%S", time.localtime()),
-            self.account, u"¥:", self.money, "Flow:", "%.2fMB" % self.left_flow,
+            u"[#] %s %s %s %s %s %s %s %s %s",
+            time.strftime("%H:%M:%S", time.localtime()),
+            self.account, u"¥:", self.money,
+            "Flow:", "%.2fMB" % self.left_flow,
             "Users:", int(self.online_count), self.message
         )
 
     def log_users(self):
-        logging.warning("[!] %s users online at the same time, so logout", self.online_count)
+        logging.warning("[!] %s users online at the same time, so logout",
+                        self.online_count)
 
     def log_flow_limit(self):
-        logging.warning("[!] %s MB Left flow is less than minimal reserved flow limit %s MB",
-                        self.left_flow, self.reserved_flow_limit)
+        logging.warning(
+            "[!] %s MB Left flow is less than min reserved flow limit %s MB",
+            self.left_flow, self.reserved_flow_limit)
 
     def fresh_online_user_info(self):
-        self.ePortal_post("freshOnlineUserInfo", {"userIndex": self.user_index})
+        self.ePortal_post("freshOnlineUserInfo",
+                          {"userIndex": self.user_index})
         for key in self.data:
             logging.info(u"%s %s %s", key, ":", self.data[key])
-        logging.info(u"%s %s", data["maxFlow"], self.data["accountFee"])
+        logging.info(u"%s %s", self.data["maxFlow"], self.data["accountFee"])
 
     def get_user_infos(self):
         if not self.self_url:
@@ -145,7 +153,8 @@ class Login(object):
         conn = requests.Session()
         conn.get(self.self_url)
         ret = conn.get("http://121.195.186.149/selfservice/module/userself/web/consume.jsf")
-        fee = "".join(re.findall(r'<td class=\"contextDate\">(.+)\..+</td>', ret.text))
+        fee = "".join(
+            re.findall(r'<td class=\"contextDate\">(.+)\..+</td>', ret.text))
         res = re.findall(r':(.+)MB / ([0-9\.]+) GB', ret.text)
         used = res[0][0].replace(" ", "")
         if "GB" in used:
@@ -167,11 +176,12 @@ class Login(object):
                         try:
                             self.get_online_user_info()
                             break
-                        except:
+                        except Exception:
                             traceback.print_exc()
                             time.sleep(5)
 
-                    if self.left_flow > self.reserved_flow_limit and self.online_count < 2:
+                    if (self.left_flow > self.reserved_flow_limit and
+                            self.online_count < 2):
                         self.print_account_infos()
                     else:
                         if self.online_count > 1:
@@ -196,12 +206,14 @@ class Login(object):
             if rest_flow < self.reserved_flow_limit:
                 self.log_flow_limit()
                 logging.warning(
-                    "[!] %s MB Left flow is less than minimal reserved flow limit %s MB",
+                    "[!] %s MB Left flow less than min reserved limit %s MB",
                     self.left_flow, self.reserved_flow_limit)
                 return self.logout()
-            logging.info(u"[#] Account %s Login Succeed! %s", self.account, self.message)
+            logging.info(u"[#] Account %s Login Succeed! %s", self.account,
+                         self.message)
         else:
-            logging.warning(u"[!] Account %s Login Failed! %s", self.account, self.message)
+            logging.warning(u"[!] Account %s Login Failed! %s", self.account,
+                            self.message)
             flag = u"用户未确认网络协议书"
             if self.message.find(flag) == -1:
                 return False
@@ -239,8 +251,6 @@ def main():
 
 if __name__ == "__main__":
     logging.root.setLevel(logging.INFO)
-    # check_account()
-    # exit(0)
     while True:
         try:
             main()
@@ -250,22 +260,3 @@ if __name__ == "__main__":
         except Exception as e:
             traceback.print_exc()
             time.sleep(10)
-
-    # login = Login()
-    # login.get_page_info()
-    # login.get_user_info()
-    # login.get_services()
-    # login.login("weibingchen", "ucas")
-    # login.keep_alive()
-    # login.get_user_infos()
-    # login.get_online_user_info()
-    # login.fresh_online_user_info()
-    # login.logout()
-    # login.logout_by_userid_and_password("weibingchen", "ucas")
-    # data = login.get_json_page(Login.user_info_url)
-    # print login.get_page(Login.logout_url)
-    # for key in data:
-    #     print key, ":", data[key]
-    # print data["offlineurl"], data["maxFlow"], data["accountFee"]
-    # data = login.get_page(data["offlineurl"])
-    # print data
