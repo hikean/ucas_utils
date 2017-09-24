@@ -1,6 +1,4 @@
-#! /usr/bin/python
-# -*- coding: utf-8 -*-
-
+import codecs
 import json
 import logging
 import random
@@ -17,16 +15,32 @@ class Login(object):
     logout_url = host + "eportal/gologout.jsp"
     ePortalUrl = host + "eportal/InterFace.do?method="
 
+    def _print_log(self, response):
+        if logging.root.level == logging.DEBUG:
+            self.dumps_response(response)
+        logging.info("[#] %s %s", response.status_code, response.url)
+
+    def print_log(self):
+        for response in self.response.history:
+            self._print_log(response)
+        self._print_log(self.response)
+         
+    def dumps_response(self, response):
+        codecs.open("{}.html".format(self.uid), "w", "utf-8").write(response.text)
+        codecs.open("{}_rqh.json".format(self.uid), "w", "utf-8").write(
+            json.dumps(response.request.headers.__dict__, indent=4)
+        )
+        codecs.open("{}_rth.json".format(self.uid), "w", "utf-8").write(
+            json.dumps(response.headers.__dict__, indent=4)
+        )
+        self.uid += 1
+
     def __init__(self, account, password="ucas", reserved_flow_limit=512):
+        self.uid = 1
         self.con = requests.Session()
-        tmp = self.con.get(Login.host)
-        # logging.info("%s, %s",tmp.url, len(tmp.text))
-        self.user_index = tmp.url.split("=")[-1]
-        self.logout()  # logout the origin account
-        tmp = self.con.get(Login.logout_url)
-        # logging.info("%s, %s", tmp.text, tmp.url)
-        self.index_url = tmp.url
-        self.query_string = self.index_url.split("?")[-1]
+        self.con.headers["User-Agent"] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.91 Safari/537.36"
+        self.con.cookies["EPORTAL_USER_GROUP"]="%E4%B8%80%E5%8D%A1%E9%80%9A%E5%B8%90%E5%8F%B7"
+        self.response = None
         self.self_url = None
         self.money = None
         self.left_flow = None
@@ -35,8 +49,15 @@ class Login(object):
         self.account = account
         self.password = password
         self.data = None
-        self.response = None
         self.reserved_flow_limit = reserved_flow_limit
+        self.get_page(Login.host)
+        # logging.info("%s, %s",tmp.url, len(tmp.text))
+        self.user_index = self.response.url.split("=")[-1]
+        self.logout()  # logout the origin account
+        self.get_page(Login.logout_url)
+        # logging.info("%s, %s", tmp.text, tmp.url)
+        self.index_url = self.response.url
+        self.query_string = self.index_url.split("?")[-1]
         # loggin.info("%s, %s", self.index_url, self.user_index)
 
     @property
@@ -52,33 +73,62 @@ class Login(object):
         self.data = self.response.json()
         return self.data
 
-    def get_page(self, url):
-        self.response = self.con.get(url)
-        return self.response.text
+    def set_referer(self, referer):
+        if referer and self.response is not None:
+            self.con.headers["Referer"] = self.response.url
+        if not referer and "Referer" in self.con.headers:
+            del self.con.headers["Referer"]
+    
+    def set_origin(self, origin="http://210.77.16.21"):
+        if "Origin" in self.con.headers and origin is None:
+            del self.con.headers["Origin"]
+        if origin is not None:
+            self.con.headers["Origin"] = origin
 
-    def post_page(self, url, content):
+    def get_page(self, url, referer=True):
+        logging.info("[#] GET : %s", url)
+        self.set_referer(referer)
+        self.set_origin()
+        self.response = self.con.get(url)
+        # logging.info(self.response.text)
+        self.print_log()
+        return self.response
+
+    def post_page(self, url, content, referer=True):
+        self.set_referer(referer)
+        self.set_origin()
+        logging.info("[#] POST: %s\n %s", url, content)
         try:
             self.response = self.con.post(url, data=content)
             self.response.encoding = "utf-8"
+            # logging.info(self.response.text)
             self.data = self.response.json()
         except ConnectionError as e:
             logging.exception("[*] Exception: url: %s, %s", url, e)
             traceback.print_exc()
             self.data["result"] = "failed"
+        except Exception as e:
+            logging.exception("[!] Exception: %s", e)
+            self.data = {}
+        self.print_log()
         return self.data
 
     def ePortal_post(self, method, content):
         self.post_page(Login.ePortalUrl + method, content)
         return self.data
 
-    def login(self, account, passwd="ucas"):
+    def login(self, account=None, passwd="ucas"):
+        if account is None:
+            account, passwd = self.account, self.password
+
         data = {
             "userId": account,
             "password": passwd,
             "service": "",
             "queryString": self.query_string,
             "operatorPwd": "",
-            "validcode": ""
+            "validcode": "",
+            "operatorUserId": ""
         }
         try:
             self.ePortal_post("login", data)
@@ -237,11 +287,26 @@ def check_account(accounts):
     print "\n".join(users)
 
 
+def load_accounts(file_name="./accounts.txt"):
+    return [
+        (line.strip().split(" ")) for line in open(file_name, "r").readlines()
+    ]
+
+
+
+def test():
+    logging.root.setLevel(logging.DEBUG)
+
+    accounts = load_accounts("/Users/kean/tools/accounts.txt")
+    user, passwd = accounts[-2][0], accounts[-2][1]
+    h = Login(user, passwd)
+    h.login()
+
+
 def main():
-    with open("./accounts.txt") as fl:
-        accounts = fl.readlines()
-        accounts = [(line.strip().split(" ")) for line in accounts]
-        random.shuffle(accounts)
+    accounts = load_accounts()
+    random.shuffle(accounts)
+
     for account, password in accounts:
         user = Login(account, password, 1024)
         user.keep_running(3)
@@ -258,5 +323,5 @@ if __name__ == "__main__":
             print "KeyboardInterrupt, Bye!"
             break
         except Exception as e:
-            traceback.print_exc()
+            logging.exception("[!] Exception: %s", e)
             time.sleep(10)

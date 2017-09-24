@@ -2,4 +2,6 @@
 *.gz
 *.tgz
 *.tmp
-
+*.json
+*.html
+*.ipynb
