@@ -1,3 +1,6 @@
+#! /usr/bin/python
+# -*- coding: utf-8 -*-
+
 import codecs
 import json
 import logging
@@ -16,30 +19,30 @@ class Login(object):
     ePortalUrl = host + "eportal/InterFace.do?method="
 
     def _print_log(self, response):
-        if logging.root.level == logging.DEBUG:
-            self.dumps_response(response)
+        self.dumps_response(response)
         logging.info("[#] %s %s", response.status_code, response.url)
 
     def print_log(self):
         for response in self.response.history:
             self._print_log(response)
         self._print_log(self.response)
-         
+
     def dumps_response(self, response):
-        codecs.open("{}.html".format(self.uid), "w", "utf-8").write(response.text)
-        codecs.open("{}_rqh.json".format(self.uid), "w", "utf-8").write(
-            json.dumps(response.request.headers.__dict__, indent=4)
-        )
-        codecs.open("{}_rth.json".format(self.uid), "w", "utf-8").write(
-            json.dumps(response.headers.__dict__, indent=4)
-        )
+        # codecs.open("{}.html".format(self.uid), "w", "utf-8").write(response.text)
+        # codecs.open("{}_rqh.json".format(self.uid), "w", "utf-8").write(
+        #     json.dumps(response.request.headers.__dict__, indent=4)
+        # )
+        # codecs.open("{}_rth.json".format(self.uid), "w", "utf-8").write(
+        #     json.dumps(response.headers.__dict__, indent=4)
+        # )
         self.uid += 1
 
     def __init__(self, account, password="ucas", reserved_flow_limit=512):
         self.uid = 1
         self.con = requests.Session()
         self.con.headers["User-Agent"] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.91 Safari/537.36"
-        self.con.cookies["EPORTAL_USER_GROUP"]="%E4%B8%80%E5%8D%A1%E9%80%9A%E5%B8%90%E5%8F%B7"
+        self.con.cookies["EPORTAL_USER_GROUP"] = (
+            "%E4%B8%80%E5%8D%A1%E9%80%9A%E5%B8%90%E5%8F%B7")
         self.response = None
         self.self_url = None
         self.money = None
@@ -78,7 +81,7 @@ class Login(object):
             self.con.headers["Referer"] = self.response.url
         if not referer and "Referer" in self.con.headers:
             del self.con.headers["Referer"]
-    
+
     def set_origin(self, origin="http://210.77.16.21"):
         if "Origin" in self.con.headers and origin is None:
             del self.con.headers["Origin"]
@@ -291,7 +294,6 @@ def load_accounts(file_name="./accounts.txt"):
     return [
         (line.strip().split(" ")) for line in open(file_name, "r").readlines()
     ]
-
 
 
 def test():
