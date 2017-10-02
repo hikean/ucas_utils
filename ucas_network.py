@@ -7,7 +7,6 @@ import logging
 import random
 import re
 import time
-import traceback
 
 import requests
 from requests.exceptions import ConnectionError
@@ -19,8 +18,9 @@ class Login(object):
     ePortalUrl = host + "eportal/InterFace.do?method="
 
     def _print_log(self, response):
-        self.dumps_response(response)
-        logging.info("[#] %s %s", response.status_code, response.url)
+        if logging.root.level == logging.DEBUG:
+            self.dumps_response(response)
+        logging.debug("[#] %s %s", response.status_code, response.url)
 
     def print_log(self):
         for response in self.response.history:
@@ -28,13 +28,14 @@ class Login(object):
         self._print_log(self.response)
 
     def dumps_response(self, response):
-        # codecs.open("{}.html".format(self.uid), "w", "utf-8").write(response.text)
-        # codecs.open("{}_rqh.json".format(self.uid), "w", "utf-8").write(
-        #     json.dumps(response.request.headers.__dict__, indent=4)
-        # )
-        # codecs.open("{}_rth.json".format(self.uid), "w", "utf-8").write(
-        #     json.dumps(response.headers.__dict__, indent=4)
-        # )
+        codecs.open(
+            "{}.html".format(self.uid), "w", "utf-8").write(response.text)
+        codecs.open("{}_rqh.json".format(self.uid), "w", "utf-8").write(
+            json.dumps(response.request.headers.__dict__, indent=4)
+        )
+        codecs.open("{}_rth.json".format(self.uid), "w", "utf-8").write(
+            json.dumps(response.headers.__dict__, indent=4)
+        )
         self.uid += 1
 
     def __init__(self, account, password="ucas", reserved_flow_limit=512):
@@ -100,7 +101,7 @@ class Login(object):
     def post_page(self, url, content, referer=True):
         self.set_referer(referer)
         self.set_origin()
-        logging.info("[#] POST: %s\n %s", url, content)
+        logging.debug("[#] POST: %s\n %s", url, content)
         try:
             self.response = self.con.post(url, data=content)
             self.response.encoding = "utf-8"
@@ -108,7 +109,6 @@ class Login(object):
             self.data = self.response.json()
         except ConnectionError as e:
             logging.exception("[*] Exception: url: %s, %s", url, e)
-            traceback.print_exc()
             self.data["result"] = "failed"
         except Exception as e:
             logging.exception("[!] Exception: %s", e)
@@ -135,8 +135,8 @@ class Login(object):
         }
         try:
             self.ePortal_post("login", data)
-        except:
-            traceback.print_exc()
+        except Exception as e:
+            logging.exception("[!] Exception: %s", e)
             return False
         self.user_index = self.data["userIndex"]
         return self.data["result"] == "success"
@@ -229,8 +229,8 @@ class Login(object):
                         try:
                             self.get_online_user_info()
                             break
-                        except Exception:
-                            traceback.print_exc()
+                        except Exception as e:
+                            logging.exception("[!] Exception: %s", e)
                             time.sleep(5)
 
                     if (self.left_flow > self.reserved_flow_limit and
@@ -256,7 +256,7 @@ class Login(object):
         if retry_count > 0 and self.login(self.account, self.password):
             # self.get_user_infos()
             fee, rest_flow, user_count = self.get_online_user_info()
-            if rest_flow  is not None and rest_flow < self.reserved_flow_limit:
+            if rest_flow is not None and rest_flow < self.reserved_flow_limit:
                 self.log_flow_limit()
                 logging.warning(
                     "[!] %s MB Left flow less than min reserved limit %s MB",
