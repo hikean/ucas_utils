@@ -254,9 +254,9 @@ class Login(object):
 
     def keep_running(self, retry_count=3):
         if retry_count > 0 and self.login(self.account, self.password):
-            self.get_user_infos()
+            # self.get_user_infos()
             fee, rest_flow, user_count = self.get_online_user_info()
-            if rest_flow < self.reserved_flow_limit:
+            if rest_flow  is not None and rest_flow < self.reserved_flow_limit:
                 self.log_flow_limit()
                 logging.warning(
                     "[!] %s MB Left flow less than min reserved limit %s MB",
